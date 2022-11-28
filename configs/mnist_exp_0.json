@@ -3,7 +3,7 @@
   "agent": "MnistAgent",
   "mode": "train",
 
-  "cuda": true,
+  "cuda": false,
   "gpu_device": 0,
   "seed": 1,
 

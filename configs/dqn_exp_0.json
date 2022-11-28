@@ -2,7 +2,7 @@
   "exp_name": "dqn_exp_0",
   "agent": "DQNAgent",
 
-  "cuda": true,
+  "cuda": false,
   "gpu_device": 0,
   "seed": 1337,
 
