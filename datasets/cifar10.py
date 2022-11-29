@@ -18,7 +18,7 @@ class Cifar10DataLoader:
         self.logger = logging.getLogger("Cifar10DataLoader")
         if config.data_mode == "numpy_train":
 
-            self.logger.info("Loading DATA.....")
+            self.logger.info("Loading DAAAATA.....")
             normalize = v_transforms.Normalize(mean=[0.4914, 0.4824, 0.4467],
                                              std=[0.2471, 0.2435, 0.2616])
 
