@@ -6,9 +6,6 @@ from logging.handlers import RotatingFileHandler
 
 import json
 from easydict import EasyDict
-from pprint import pprint
-
-from utils.dirs import create_dirs
 
 
 def setup_logging(log_dir):
@@ -39,10 +36,7 @@ def setup_logging(log_dir):
 def get_config_from_json(json_file):
     """
     Get the config from a json file
-    :param json_file: the path of the config file
-    :return: config(namespace), config(dictionary)
     """
-
     # parse the configurations from the config json file provided
     with open(json_file, 'r') as config_file:
         try:
@@ -62,35 +56,26 @@ def process_config(json_file):
     then editing the path of the experiments folder
     creating some important directories in the experiment folder
     Then setup the logging in the whole program
-    Then return the config
-    :param json_file: the path of the config file
-    :return: config object(namespace)
     """
     config, _ = get_config_from_json(json_file)
-    print(" THE Configuration of your experiment ..")
-    pprint(config)
 
     # making sure that you have provided the exp_name.
     try:
         print(" *************************************** ")
-        print("The experiment name is {}".format(config.exp_name))
+        print("Experiment name: {}".format(config.exp_name))
         print(" *************************************** ")
     except AttributeError:
         print("ERROR!!..Please provide the exp_name in json file..")
         exit(-1)
-
-    # create some important directories to be used for that experiment.
-    config.summary_dir = os.path.join("experiments", config.exp_name, "summaries/")
-    config.checkpoint_dir = os.path.join("experiments", config.exp_name, "checkpoints/")
-    config.out_dir = os.path.join("experiments", config.exp_name, "out/")
-    config.log_dir = os.path.join("experiments", config.exp_name, "logs/")
-    create_dirs([config.summary_dir, config.checkpoint_dir, config.out_dir, config.log_dir])
-
-    # setup logging in the project
-    setup_logging(config.log_dir)
-
-    logging.getLogger().info("Hi, This is root.")
-    logging.getLogger().info("After the configurations are successfully processed and dirs are created.")
-    logging.getLogger().info("The pipeline of the project will begin now.")
-
     return config
+
+
+def save_config(dict_file, save_path):
+    """Save the configuration"""
+
+    myJSON = json.dumps(dict_file)
+    with open(save_path + "exp_config.json", "w") as jsonfile:
+        jsonfile.write(myJSON)
+    print('Saved configuration in ' + save_path)
+
+
