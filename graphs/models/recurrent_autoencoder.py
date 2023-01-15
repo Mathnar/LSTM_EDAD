@@ -108,27 +108,3 @@ class RecurrentAutoEncoder(nn.Module):
             decoder = Decoder
         return decoder
 
-if __name__ == '__main__':
-
-    # Test
-    config = {}
-    config['n_features'] = 1
-    config['latent_dim'] = 5
-    config['rnn_type'] = 'GRU'
-    config['rnn_act'] = 'relu'
-    config['device'] = 'cpu'
-    config = edict(config)
-
-    X = torch.tensor([[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]], dtype=torch.float32).unsqueeze(2)
-    my_model = RecurrentAutoEncoder(config)
-    my_model.forward(X)
-    h = my_model.encoder(X)
-    out = my_model.decoder(h, seq_len = 10)
-    out = torch.flip(out, [1])
-    loss = nn.L1Loss(reduction = 'mean')
-    l = loss(X, out)
-    print(l)
-
-

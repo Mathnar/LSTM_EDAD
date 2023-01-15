@@ -26,7 +26,8 @@ class RecurrentAEAgent(BaseAgent):
 
          # Create an instance from the Model
         self.model = RecurrentAutoEncoder(self.config)
-
+        self.reconstruction_errors = []
+        self.input_data = None
         # Create an instance from the data loader
         self.data_loader = ECG500DataLoader(self.config) # CHANGE
 
@@ -42,19 +43,17 @@ class RecurrentAEAgent(BaseAgent):
         # Training info
         self.current_epoch = 0
 
-        # Creating folder where to save checkpoints
         self.checkpoints_path = checkpoints_folder(self.config)
 
-        # Initialize my counters
+
         self.current_epoch = 0
         self.best_valid = 10e+16 # Setting a very large values
         self.train_loss = np.array([], dtype = np.float64)
         self.train_loss_parz = np.array([], dtype=np.float64)
         self.valid_loss = np.array([], dtype = np.float64)
 
-        # Check is cuda is available or not
+
         self.is_cuda = torch.cuda.is_available()
-        # Construct the flag and make sure that cuda is available
         self.cuda = self.is_cuda & self.config.cuda
 
         if self.cuda:
@@ -83,23 +82,17 @@ class RecurrentAEAgent(BaseAgent):
             print('\nIn train\n')
 
             # Training epoch
-            if self.config.training_type == "one_class":
-                perf_train = self.train_one_epoch()
-                self.train_loss = np.append(self.train_loss, perf_train[0].avg)
-                print('Training loss at epoch ' + str(self.current_epoch) + ' is ' + str(perf_train[0].avg))
-            else:
-                perf_train, perf_train_parz = self.train_one_epoch()
-                self.train_loss = np.append(self.train_loss, perf_train.avg)
-                self.train_loss_parz = np.append(self.train_loss_parz, perf_train_parz.avg)
-                print('Training loss at epoch ' + str(self.current_epoch) + ' is ' + str(perf_train.avg))
-                print('Training loss parz at epoch ' + str(self.current_epoch) + ' is ' + str(perf_train_parz.avg))
+
+            perf_train = self.train_one_epoch()
+            self.train_loss = np.append(self.train_loss, perf_train[0].avg)
+            print('Training loss at epoch ' + str(self.current_epoch) + ' is ' + str(perf_train[0].avg))
 
             # Validation
             perf_valid = self.validate_one_epoch()
             self.valid_loss = np.append(self.valid_loss, perf_valid.avg)
             print('Validation loss at epoch ' + str(self.current_epoch) + ' is ' + str(perf_valid.avg))
 
-            
+
             # Saving
             is_best = perf_valid.sum < self.best_valid
             if is_best:
@@ -117,7 +110,7 @@ class RecurrentAEAgent(BaseAgent):
         self.model.train()
         epoch_loss = AverageMeter()
         epoch_loss_parz = AverageMeter()
-
+        reconstruction_errors=[]
         # One epoch of training
         for x, y in tqdm_batch:
             #print('\nxx ', type(x), '\n\n', len(x), '\n', x)
@@ -126,12 +119,11 @@ class RecurrentAEAgent(BaseAgent):
             # Model
             x_hat = self.model(x)
             # Current training loss
-            if self.config.training_type == "one_class":
-                cur_tr_loss = self.loss(x, x_hat)
-                #print('\ncur_tr_loss train_one_epoch\n')
-            else:
-                cur_tr_loss, cur_tr_parz_loss = self.loss(x, x_hat, y, self.config.lambda_auc)
-           
+
+            cur_tr_loss = self.loss(x, x_hat)
+            #print('\ncur_tr_loss train_one_epoch\n')
+
+            reconstruction_errors.append(cur_tr_loss.item())
             if np.isnan(float(cur_tr_loss.item())):
                 raise ValueError('Loss is nan during training...')
 
@@ -141,12 +133,10 @@ class RecurrentAEAgent(BaseAgent):
             self.optimizer.step()
 
             # Updating loss
-            if self.config.training_type == "one_class":
-                epoch_loss.update(cur_tr_loss.item())
-            else:
-                epoch_loss.update(cur_tr_loss.item())
-                epoch_loss_parz.update(cur_tr_parz_loss.item())
 
+            epoch_loss.update(cur_tr_loss.item())
+
+        self.reconstruction_errors.extend(reconstruction_errors)
         tqdm_batch.close()
       
         return epoch_loss, epoch_loss_parz
@@ -172,10 +162,9 @@ class RecurrentAEAgent(BaseAgent):
                 x_hat = self.model(x)
                 
                 # Current training loss
-                if self.config.training_type == "one_class":
-                    cur_val_loss = self.loss(x, x_hat)
-                else:
-                    cur_val_loss = self.loss(x, x_hat, y, self.config.lambda_auc)
+
+                cur_val_loss = self.loss(x, x_hat)
+
 
                 if np.isnan(float(cur_val_loss.item())):
                     raise ValueError('Loss is nan during validation...')
@@ -184,7 +173,7 @@ class RecurrentAEAgent(BaseAgent):
             tqdm_batch.close()
         return epoch_loss
     
-    def save_checkpoint(self, filename ='checkpoint.pth.tar', is_best = 0):
+    def save_checkpoint(self, filename ='__checkpoint.pth.tar', is_best = 0):
         """
         Saving the latest checkpoint of the training
         :param filename: filename which will contain the state
@@ -197,7 +186,8 @@ class RecurrentAEAgent(BaseAgent):
             'optimizer': self.optimizer.state_dict(),
             'valid_loss': self.valid_loss,
             'train_loss': self.train_loss,
-            'train_loss_parz': self.train_loss_parz
+            'train_loss_parz': self.train_loss_parz,
+            'reconstruction_errors': self.reconstruction_errors
         }
 
         # Save the state
@@ -221,6 +211,7 @@ class RecurrentAEAgent(BaseAgent):
                 self.valid_loss = checkpoint['valid_loss']
                 self.train_loss = checkpoint['train_loss']
                 self.train_loss_parz = checkpoint['train_loss_parz']
+                self.reconstruction_errors = checkpoint['reconstruction_errors']
 
                 print("Checkpoint loaded successfully from '{}' at (epoch {}) \n"
                                 .format(self.checkpoints_path , checkpoint['epoch']))
